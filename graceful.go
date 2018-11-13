@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync"
@@ -48,8 +49,15 @@ type serverWrapper struct {
 }
 
 func (sw *serverWrapper) Serve() error {
-	logger.Printf("listen tcp on %s", sw.addr)
-	lis, err := net.Listen("tcp", sw.addr)
+	network := "tcp"
+	if u, err := url.Parse(sw.addr); err == nil {
+		if u.Scheme == "unix" || u.Scheme == "unixs" {
+			network = "unix"
+			sw.addr = u.Host + u.Path
+		}
+	}
+	logger.Printf("listen %s on %s", network, sw.addr)
+	lis, err := net.Listen(network, sw.addr)
 	if err != nil {
 		return err
 	}
