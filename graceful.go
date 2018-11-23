@@ -72,20 +72,28 @@ type httpWrapper struct {
 	s        *http.Server
 	certFile string
 	keyFile  string
+	shutdown bool
 	tls      bool
 }
 
 func (sw *httpWrapper) Serve() error {
 	logger.Printf("serving HTTP on %s", sw.s.Addr)
+	var err error
 	if sw.tls {
-		return sw.s.ListenAndServeTLS(sw.certFile, sw.keyFile)
+		err = sw.s.ListenAndServeTLS(sw.certFile, sw.keyFile)
+	} else {
+		err = sw.s.ListenAndServe()
 	}
-	return sw.s.ListenAndServe()
+	if err == http.ErrServerClosed && sw.shutdown {
+		return nil
+	}
+	return err
 }
 
 func (sw *httpWrapper) GracefulStop() {
 	ctx, cancel := context.WithTimeout(context.Background(), HTTPGraceTime)
 	defer cancel()
+	sw.shutdown = true
 	sw.s.Shutdown(ctx)
 }
 
